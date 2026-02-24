@@ -1,7 +1,6 @@
 package net.mcreator.insidethesystem.meta;
 
 import net.mcreator.insidethesystem.entity.CoolPlayer303Entity;
-import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.AABB;
@@ -17,7 +16,8 @@ import java.util.List;
  * ChatInterceptor — Hooks into NeoForge's ServerChatEvent to intercept player messages
  * and route them through the Gemini AI bridge.
  *
- * Also feeds biome context to the AI for the system prompt's {minecraft_biome} variable.
+ * This replaces what would be a Mixin on ServerPlayNetworkHandler.
+ * NeoForge provides a proper event for this, so no Mixin is needed.
  *
  * PRIVACY: Only the text typed in the MC chat bar is sent to Gemini.
  */
@@ -30,9 +30,8 @@ public class ChatInterceptor {
         MetaOrchestrator orchestrator = MetaOrchestrator.getInstance();
         if (orchestrator == null) return;
 
-        // Intercept during ALLY and BREACH phases (AI goes silent during BETRAYAL)
-        MetaOrchestrator.Phase phase = orchestrator.getCurrentPhase();
-        if (phase == MetaOrchestrator.Phase.BETRAYAL || phase == MetaOrchestrator.Phase.AFTERMATH) return;
+        // Only intercept during the ALLY phase
+        if (orchestrator.getCurrentPhase() != MetaOrchestrator.Phase.ALLY) return;
 
         String playerName = event.getPlayer().getName().getString();
         String rawMessage = event.getRawText();
