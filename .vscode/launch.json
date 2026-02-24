@@ -1,0 +1,47 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "Client",
+      "presentation": {
+        "group": "Mod Development - horror mode",
+        "order": 0
+      },
+      "projectName": "horror mode",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@/home/yahya/horror mode/build/moddev/clientRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@/home/yahya/horror mode/build/moddev/clientRunVmArgs.txt",
+        "-Dfml.modFolders\u003dsentient_coolplayer%%/home/yahya/horror mode/bin/main"
+      ],
+      "cwd": "${workspaceFolder}/run",
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    },
+    {
+      "type": "java",
+      "request": "launch",
+      "name": "Server",
+      "presentation": {
+        "group": "Mod Development - horror mode",
+        "order": 1
+      },
+      "projectName": "horror mode",
+      "mainClass": "net.neoforged.devlaunch.Main",
+      "args": [
+        "@/home/yahya/horror mode/build/moddev/serverRunProgramArgs.txt"
+      ],
+      "vmArgs": [
+        "@/home/yahya/horror mode/build/moddev/serverRunVmArgs.txt",
+        "-Dfml.modFolders\u003dsentient_coolplayer%%/home/yahya/horror mode/bin/main"
+      ],
+      "cwd": "${workspaceFolder}/run",
+      "console": "internalConsole",
+      "shortenCommandLine": "none"
+    }
+  ]
+}

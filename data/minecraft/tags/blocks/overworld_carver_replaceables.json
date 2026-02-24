@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "inside_the_system:base",
+    "minecraft:air",
+    "minecraft:cave_air"
+  ]
+}

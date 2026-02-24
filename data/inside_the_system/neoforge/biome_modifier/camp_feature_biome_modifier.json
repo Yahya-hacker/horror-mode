@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#is_overworld",
+  "features": "inside_the_system:camp_feature",
+  "step": "surface_structures"
+}

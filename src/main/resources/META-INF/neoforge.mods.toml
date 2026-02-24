@@ -1,0 +1,64 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "Academic Free License v3.0"
+
+[[mods]]
+modId = "inside_the_system"
+version = "1.2.0"
+displayName = "Inside the system"
+displayURL = "https://www.youtube.com/@DregIrWhat"
+credits = "Hi, I don't remember how I got here, but I think we'll have a good time together!!!!"
+authors = "DregIr"
+
+[[mods]]
+modId = "sentient_coolplayer"
+version = "1.0.0"
+displayName = "Sentient Coolplayer"
+authors = "AI Engineer"
+description = '''Meta-Horror Orchestrator extension for Inside the System. Privacy-focused AI companion.'''
+
+[[dependencies.inside_the_system]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1.65,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.inside_the_system]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1]"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.sentient_coolplayer]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.1.65,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.sentient_coolplayer]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1]"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.sentient_coolplayer]]
+modId = "inside_the_system"
+type = "required"
+versionRange = "[1.2.0,)"
+ordering = "AFTER"
+side = "BOTH"
+
+# Oculus (NeoForge port of Iris Shaders) — OPTIONAL
+# If present, the Spooklementary shader is auto-activated via the Oculus API.
+# If absent, the shader is still deployed to shaderpacks/ and config files are written,
+# but the player may need to select it manually or restart.
+[[dependencies.sentient_coolplayer]]
+modId = "oculus"
+type = "optional"
+versionRange = "[1.0.0,)"
+ordering = "AFTER"
+side = "CLIENT"

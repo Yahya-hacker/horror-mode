@@ -1,0 +1,330 @@
+{
+  "screamer1": {
+    "sounds": [
+      {
+        "name": "inside_the_system:711110__xiko__staticdeath_10",
+        "stream": false
+      }
+    ]
+  },
+  "builderspawn": {
+    "sounds": [
+      {
+        "name": "inside_the_system:minecraft-cave-sound-5",
+        "stream": false
+      }
+    ]
+  },
+  "musicbox": {
+    "sounds": [
+      {
+        "name": "inside_the_system:412224__inspectorj__creepy-lullaby-a",
+        "stream": false
+      }
+    ]
+  },
+  "end": {
+    "sounds": [
+      {
+        "name": "inside_the_system:07-forgotten",
+        "stream": false
+      }
+    ]
+  },
+  "begining": {
+    "sounds": [
+      {
+        "name": "inside_the_system:170097__klankbeeld__music-box-loop-36",
+        "stream": false
+      }
+    ]
+  },
+  "activate": {
+    "sounds": [
+      {
+        "name": "inside_the_system:63c89ee127d1bc4",
+        "stream": false
+      }
+    ]
+  },
+  "shards": {
+    "sounds": [
+      {
+        "name": "inside_the_system:sfx-creepy-and-suspenseful-background-ping-339886",
+        "stream": false
+      }
+    ]
+  },
+  "bood": {
+    "sounds": [
+      {
+        "name": "inside_the_system:jumpscare-206590",
+        "stream": false
+      }
+    ]
+  },
+  "memories": {
+    "sounds": [
+      {
+        "name": "inside_the_system:thriller-horror-music-box-376002",
+        "stream": true
+      }
+    ]
+  },
+  "error": {
+    "sounds": [
+      {
+        "name": "inside_the_system:sound-effect-system-error-sound-117733",
+        "stream": false
+      }
+    ]
+  },
+  "accept": {
+    "sounds": [
+      {
+        "name": "inside_the_system:long-fade-138693",
+        "stream": false
+      }
+    ]
+  },
+  "mainost": {
+    "sounds": [
+      {
+        "name": "inside_the_system:main_ost",
+        "stream": false
+      }
+    ]
+  },
+  "pswscreamer": {
+    "sounds": [
+      {
+        "name": "inside_the_system:glitch-sounds-26212",
+        "stream": false
+      }
+    ]
+  },
+  "spawnfollower": {
+    "sounds": [
+      {
+        "name": "inside_the_system:596453__bxnglxdxsh__another-jumpscare",
+        "stream": false
+      }
+    ]
+  },
+  "aiko": {
+    "sounds": [
+      {
+        "name": "inside_the_system:spring-night-is-over-ambient-liminal-darkambient-night-322125-_1_-_remix_",
+        "stream": false
+      }
+    ]
+  },
+  "ambientgooddimens": {
+    "sounds": [
+      {
+        "name": "inside_the_system:minecraftliminal_full_song_musicgpt",
+        "stream": false
+      }
+    ]
+  },
+  "ambient2": {
+    "sounds": [
+      {
+        "name": "inside_the_system:processed_audio-_mp3cut.net_",
+        "stream": false
+      }
+    ]
+  },
+  "endingd": {
+    "sounds": [
+      {
+        "name": "inside_the_system:tea-box-86736",
+        "stream": false
+      }
+    ]
+  },
+  "brokenbox": {
+    "sounds": [
+      {
+        "name": "inside_the_system:old-broken-music-box-sound-effect-386717-_mp3cut.net_",
+        "stream": false
+      }
+    ]
+  },
+  "endingfscreamers": {
+    "sounds": [
+      {
+        "name": "inside_the_system:broken-audio-file-distortion-104395-_mp3cut.net_",
+        "stream": false
+      }
+    ]
+  },
+  "tunnelsound": {
+    "sounds": [
+      {
+        "name": "inside_the_system:riser-horror-330827",
+        "stream": false
+      }
+    ]
+  },
+  "openmemory": {
+    "sounds": [
+      {
+        "name": "inside_the_system:gong-sound-effect-308757",
+        "stream": false
+      }
+    ]
+  },
+  "raven": {
+    "sounds": [
+      {
+        "name": "inside_the_system:jutkiy-krik-voronov-_mp3cut.net_",
+        "stream": false
+      }
+    ]
+  },
+  "endingaambient": {
+    "sounds": [
+      {
+        "name": "inside_the_system:church-atmosphere-with-choir-54511",
+        "stream": false
+      }
+    ]
+  },
+  "light": {
+    "sounds": [
+      {
+        "name": "inside_the_system:korotkiy-schelchok-vyiklyucheniya-sveta",
+        "stream": false
+      }
+    ]
+  },
+  "fatherspawn": {
+    "sounds": [
+      {
+        "name": "inside_the_system:fuzzy-jumpscare-80560-_1_",
+        "stream": false
+      }
+    ]
+  },
+  "risesound": {
+    "sounds": [
+      {
+        "name": "inside_the_system:fx-frenzied-and-panic-stricken-riser-effect-with-howling-horns-251191",
+        "stream": false
+      }
+    ]
+  },
+  "woosh": {
+    "sounds": [
+      {
+        "name": "inside_the_system:fx-cinematic-swirling-wine-glass-riser-sound-effect-249069",
+        "stream": false
+      }
+    ]
+  },
+  "musicboxattac": {
+    "sounds": [
+      {
+        "name": "inside_the_system:music-box-horror-190275",
+        "stream": false
+      }
+    ]
+  },
+  "endingc": {
+    "sounds": [
+      {
+        "name": "inside_the_system:moi-audio-1",
+        "stream": false
+      }
+    ]
+  },
+  "titles": {
+    "sounds": [
+      {
+        "name": "inside_the_system:moi-audio-2",
+        "stream": false
+      }
+    ]
+  },
+  "behind": {
+    "sounds": [
+      {
+        "name": "inside_the_system:stuk-v-dver",
+        "stream": false
+      }
+    ]
+  },
+  "behindscreamer": {
+    "sounds": [
+      {
+        "name": "inside_the_system:screamer-jumpscare-66896-_1_",
+        "stream": false
+      }
+    ]
+  },
+  "photo": {
+    "sounds": [
+      {
+        "name": "inside_the_system:page-flip-sound",
+        "stream": false
+      }
+    ]
+  },
+  "thesun": {
+    "sounds": [
+      {
+        "name": "inside_the_system:sfx-a-temporary-high-tension-event-transition-366522",
+        "stream": false
+      }
+    ]
+  },
+  "spawnplayer": {
+    "sounds": [
+      {
+        "name": "inside_the_system:minecraft-cave-sound-14",
+        "stream": false
+      }
+    ]
+  },
+  "change": {
+    "sounds": [
+      {
+        "name": "inside_the_system:bolas",
+        "stream": false
+      }
+    ]
+  },
+  "write": {
+    "sounds": [
+      {
+        "name": "inside_the_system:pencil-writing-on-paper-84424_1_-_mp3cut.net_",
+        "stream": false
+      }
+    ]
+  },
+  "smile": {
+    "sounds": [
+      {
+        "name": "inside_the_system:scary-transition-401717",
+        "stream": false
+      }
+    ]
+  },
+  "glitch": {
+    "sounds": [
+      {
+        "name": "inside_the_system:tv-glitch-6245",
+        "stream": false
+      }
+    ]
+  },
+  "shagi": {
+    "sounds": [
+      {
+        "name": "inside_the_system:shagi-po-trave-minecraft-_mp3cut.net_",
+        "stream": false
+      }
+    ]
+  }
+}

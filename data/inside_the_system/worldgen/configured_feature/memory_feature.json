@@ -1,0 +1,12 @@
+{
+  "type": "inside_the_system:structure_feature",
+  "config": {
+    "structure": "inside_the_system:memory",
+    "ignored_blocks": "minecraft:structure_block",
+    "offset": [
+      0,
+      -1,
+      0
+    ]
+  }
+}

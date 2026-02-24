@@ -1,0 +1,83 @@
+plugins {
+    id 'java'
+}
+
+version = '1.0.0'
+group = 'net.mcreator.insidethesystem'
+
+base {
+    archivesName = 'sentient-coolplayer'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir 'src/main/java'
+        }
+        resources {
+            srcDirs = ['src/main/resources']
+        }
+    }
+}
+
+// Prevent conflicts with the decompressed original mod's META-INF in workspace root
+tasks.named('processResources') {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // All compile-only — provided at runtime by NeoForge + Minecraft
+    compileOnly files('ITS (1.21.1) 1.2.jar')                            // Original mod
+    compileOnly fileTree(dir: 'libs', include: '*.jar')                   // NeoForge + MC + libs
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+
+jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    manifest {
+        attributes([
+            'Implementation-Title'  : 'Sentient Coolplayer',
+            'Implementation-Version': project.version,
+        ])
+    }
+}
+
+tasks.register('mergedJar', Jar) {
+    dependsOn(tasks.classes)
+
+    archiveBaseName = 'inside-the-system-sentient'
+    archiveVersion = '1.2.0'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    // 1) Bring in the original Inside the System mod (all assets/data/code)
+    from(zipTree(file('ITS (1.21.1) 1.2.jar'))) {
+        // Replace all metadata with our combined descriptors
+        exclude 'META-INF/MANIFEST.MF'
+        exclude 'META-INF/mods.toml'
+        exclude 'META-INF/neoforge.mods.toml'
+    }
+
+    // 2) Overlay sentient extension classes/resources (including combined neoforge.mods.toml)
+    from(sourceSets.main.output)
+
+    manifest {
+        attributes([
+            'Implementation-Title'  : 'Inside the System + Sentient Coolplayer',
+            'Implementation-Version': archiveVersion.get(),
+        ])
+    }
+}

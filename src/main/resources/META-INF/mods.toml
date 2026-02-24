@@ -1,0 +1,39 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="Academic Free License v3.0"
+
+[[mods]]
+modId="inside_the_system"
+version="1.0.0"
+displayName="Inside the system"
+displayURL="https://mcreator.net"
+credits="Created using mod maker MCreator - https://mcreator.net/about"
+authors="zeny0, MCreator"
+
+[[mods]]
+modId="sentient_coolplayer"
+version="1.0.0"
+displayName="Sentient Coolplayer"
+authors="AI Engineer"
+description="Meta-Horror Orchestrator extension for Inside the System."
+
+[[dependencies.inside_the_system]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.20.1,1.21.2)"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.sentient_coolplayer]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.20.1,1.21.2)"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.sentient_coolplayer]]
+    modId="inside_the_system"
+    mandatory=true
+    versionRange="[1.0.0,)"
+    ordering="AFTER"
+    side="BOTH"

@@ -1,0 +1,6 @@
+{
+  "parent": "item/handheld",
+  "textures": {
+    "layer0": "inside_the_system:item/pixilart-drawing_3"
+  }
+}

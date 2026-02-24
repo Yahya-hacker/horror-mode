@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " a ",
+    "bcb",
+    " a "
+  ],
+  "key": {
+    "a": {
+      "item": "minecraft:brown_wool"
+    },
+    "b": {
+      "item": "minecraft:black_wool"
+    },
+    "c": {
+      "item": "minecraft:spider_eye"
+    }
+  },
+  "result": {
+    "id": "inside_the_system:gerd",
+    "count": 1
+  }
+}

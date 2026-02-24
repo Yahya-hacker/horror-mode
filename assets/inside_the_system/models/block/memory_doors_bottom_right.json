@@ -1,0 +1,9 @@
+{
+  "parent": "block/door_bottom_right",
+  "textures": {
+    "particle": "inside_the_system:block/log_acacia",
+    "bottom": "inside_the_system:block/memory_bottom",
+    "top": "inside_the_system:block/memory_door_top"
+  },
+  "render_type": "solid"
+}

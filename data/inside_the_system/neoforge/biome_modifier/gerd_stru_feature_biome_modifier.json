@@ -1,0 +1,9 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": [
+    "plains",
+    "forest"
+  ],
+  "features": "inside_the_system:gerd_stru_feature",
+  "step": "surface_structures"
+}

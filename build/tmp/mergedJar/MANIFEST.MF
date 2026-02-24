@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Implementation-Title: Inside the System + Sentient Coolplayer
+Implementation-Version: 1.2.0
+

@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "aaa",
+    " ba",
+    " aa"
+  ],
+  "key": {
+    "a": {
+      "item": "minecraft:bone_meal"
+    },
+    "b": {
+      "item": "minecraft:air"
+    }
+  },
+  "result": {
+    "id": "minecraft:nautilus_shell",
+    "count": 1
+  }
+}

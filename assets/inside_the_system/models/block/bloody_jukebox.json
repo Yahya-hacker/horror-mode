@@ -1,0 +1,13 @@
+{
+  "parent": "block/cube",
+  "textures": {
+    "down": "inside_the_system:block/error",
+    "up": "inside_the_system:block/error",
+    "north": "inside_the_system:block/error",
+    "east": "inside_the_system:block/error",
+    "south": "inside_the_system:block/error",
+    "west": "inside_the_system:block/error",
+    "particle": "inside_the_system:block/error"
+  },
+  "render_type": "solid"
+}

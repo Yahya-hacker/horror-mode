@@ -1,0 +1,9 @@
+{
+  "type": "inside_the_system:structure_feature",
+  "config": {
+    "structure": "inside_the_system:portal",
+    "random_rotation": true,
+    "random_mirror": true,
+    "ignored_blocks": "minecraft:structure_block"
+  }
+}

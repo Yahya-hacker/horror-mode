@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "a a",
+    "a a",
+    " b "
+  ],
+  "key": {
+    "a": {
+      "item": "minecraft:string"
+    },
+    "b": {
+      "item": "minecraft:nautilus_shell"
+    }
+  },
+  "result": {
+    "id": "inside_the_system:shellnecklace_chestplate",
+    "count": 1
+  }
+}
