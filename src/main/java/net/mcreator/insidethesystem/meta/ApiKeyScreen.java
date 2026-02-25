@@ -37,7 +37,6 @@ public class ApiKeyScreen extends Screen {
     private static final int RED         = 0xFFFF1744;
     private static final int AMBER       = 0xFFFFAB00;
     private static final int DIM_GREEN   = 0xFF003D0F;
-    private static final int WHITE       = 0xFFE0E0E0;
 
     private EditBox apiKeyField;
     private Button verifyButton;

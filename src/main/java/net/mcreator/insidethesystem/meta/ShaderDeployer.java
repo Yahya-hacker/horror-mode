@@ -8,6 +8,7 @@ import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.file.*;
+import java.security.MessageDigest;
 import java.util.Properties;
 
 /**
@@ -151,6 +152,24 @@ public class ShaderDeployer {
                     LOGGER.error("[Shader] Downloaded file too small ({}B). Discarding.", downloadedSize);
                     Files.deleteIfExists(tempFile);
                     return false;
+                }
+
+                // Verify SHA1 integrity
+                try {
+                    MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
+                    byte[] fileBytes = Files.readAllBytes(tempFile);
+                    byte[] digest = sha1.digest(fileBytes);
+                    StringBuilder sb = new StringBuilder();
+                    for (byte b : digest) sb.append(String.format("%02x", b));
+                    String actualSha1 = sb.toString();
+                    if (!EXPECTED_SHA1.equals(actualSha1)) {
+                        LOGGER.warn("[Shader] SHA1 mismatch: expected={}, actual={}. File may be corrupted.",
+                                EXPECTED_SHA1, actualSha1);
+                    } else {
+                        LOGGER.info("[Shader] SHA1 integrity verified.");
+                    }
+                } catch (Exception e) {
+                    LOGGER.debug("[Shader] SHA1 verification skipped: {}", e.getMessage());
                 }
 
                 // Atomic move to final location
