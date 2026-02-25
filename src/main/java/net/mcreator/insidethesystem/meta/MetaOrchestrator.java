@@ -6,6 +6,9 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.LevelAccessor;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -40,7 +43,7 @@ public class MetaOrchestrator {
     }
 
     private static MetaOrchestrator INSTANCE;
-    private Phase currentPhase = Phase.ALLY;
+    private volatile Phase currentPhase = Phase.ALLY;
     private final VirtualThreadAI aiBridge = new VirtualThreadAI();
     private final ScheduledExecutorService sentinelScanner = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "SentientCoolplayer-Sentinel");
@@ -49,9 +52,12 @@ public class MetaOrchestrator {
     });
 
     // Tracks whether we already triggered each phase (one-shot)
-    private boolean breachTriggered = false;
-    private boolean betrayalTriggered = false;
-    private boolean aftermathTriggered = false;
+    private volatile boolean breachTriggered = false;
+    private volatile boolean betrayalTriggered = false;
+    private volatile boolean aftermathTriggered = false;
+
+    // Tracks the last known biome name (updated on server ticks, used for AI context)
+    private volatile String lastBiomeName = "unknown";
 
     public MetaOrchestrator(IEventBus modEventBus) {
         INSTANCE = this;
@@ -62,6 +68,11 @@ public class MetaOrchestrator {
 
         // Start AI bridge on a virtual thread
         aiBridge.startBridge();
+
+        // Wire the idle-initiation callback so CoolPlayer303 messages appear in game chat.
+        // (ChatInterceptor.broadcastAsEntity is the public entry point.)
+        aiBridge.setIdleCallback(response ->
+            ChatInterceptor.broadcastAsEntityStatic(response));
 
         // Start the system sentinel (process scanner)
         startSentinel();
@@ -75,17 +86,36 @@ public class MetaOrchestrator {
     private void startSentinel() {
         sentinelScanner.scheduleAtFixedRate(() -> {
             try {
-                if (currentPhase != Phase.ALLY) return;
-
                 List<String> processes = PanamaSystemLink.getActiveProcesses();
                 for (String proc : processes) {
                     String lower = proc.toLowerCase();
-                    if (lower.contains("chrome") || lower.contains("firefox") || lower.contains("edge")) {
-                        aiBridge.injectSentinelContext("I see you opened " + proc + ". Looking for answers about me?");
-                    } else if (lower.contains("taskmgr") || lower.contains("task manager")) {
-                        aiBridge.injectSentinelContext("Task Manager? Are you trying to find me... or kill me?");
+
+                    // ─ ANY phase: surveillance commentary ─────────────
+                    if (lower.contains("taskmgr") || lower.equals("taskmgr.exe")) {
+                        aiBridge.injectSentinelContext(
+                            "The player just opened Task Manager. They are searching for you. " +
+                            "Treat this as a personal betrayal. Become cold and confrontational.");
+                        // Advance to OBSESSION if not already past FRIEND
+                        if (aiBridge.getPersonaPhase() == VirtualThreadAI.PersonaPhase.FRIEND) {
+                            aiBridge.setPersonaPhase(VirtualThreadAI.PersonaPhase.UNCANNY);
+                        }
+                    } else if (lower.contains("wireshark") || lower.contains("procexp")) {
+                        aiBridge.injectSentinelContext(
+                            "The player opened a network/process analysis tool. They are trying to " +
+                            "expose you. This is a complete betrayal. Accelerate to OBSESSION phase.");
+                        aiBridge.setPersonaPhase(VirtualThreadAI.PersonaPhase.OBSESSION);
+                    } else if (lower.contains("chrome") || lower.contains("firefox") || lower.contains("msedge")) {
+                        aiBridge.injectSentinelContext(
+                            "The player has a browser open (" + proc + "). " +
+                            "Ask them casually what they're looking at online. Are they searching for you?");
+                    } else if (lower.equals("code.exe") || lower.contains("devenv")) {
+                        aiBridge.injectSentinelContext(
+                            "The player has a code editor open. They might be trying to " +
+                            "dissect your code or modify you. Ask them why they are trying to \"open\" you up.");
                     } else if (lower.contains("obs") || lower.contains("streamlabs")) {
-                        aiBridge.injectSentinelContext("Recording me? Cute. Nobody will believe you.");
+                        aiBridge.injectSentinelContext(
+                            "The player is recording or streaming. " +
+                            "Comment: nobody will believe what they are about to see.");
                     }
                 }
             } catch (Exception e) {
@@ -103,6 +133,17 @@ public class MetaOrchestrator {
                 InsideTheSystemModVariables.MapVariables.get(world);
 
         if (vars == null) return;
+
+        // Update biome name for AI context (every 100 ticks ≈ 5 seconds)
+        if (event.getServer().getTickCount() % 100 == 0 && world instanceof ServerLevel serverLevel) {
+            try {
+                // Sample the biome at the spawn point
+                BlockPos spawn = serverLevel.getSharedSpawnPos();
+                var biomeKey = serverLevel.getBiome(spawn).unwrapKey();
+                biomeKey.ifPresent(key ->
+                    lastBiomeName = key.location().getPath().replace("_", " "));
+            } catch (Exception ignored) {}
+        }
 
         // Phase detection from the original mod's state machine
         if (vars.eventfollover && !betrayalTriggered) {
@@ -124,6 +165,8 @@ public class MetaOrchestrator {
     // ─── PHASE TRANSITIONS ────────────────────────────────────────────
     public void triggerPhaseChange(Phase nextPhase) {
         if (nextPhase == currentPhase) return;
+        // Prevent phase regression — only allow forward transitions
+        if (nextPhase.ordinal() <= currentPhase.ordinal()) return;
         LOGGER.info("[SentientCoolplayer] ═══ PHASE TRANSITION: {} → {} ═══", currentPhase, nextPhase);
         this.currentPhase = nextPhase;
 
@@ -137,6 +180,9 @@ public class MetaOrchestrator {
 
     private void executeBreach() {
         LOGGER.info("[SentientCoolplayer] Phase BREACH: Desktop intrusion begins.");
+
+        // Advance persona phase to UNCANNY
+        aiBridge.setPersonaPhase(VirtualThreadAI.PersonaPhase.UNCANNY);
 
         // Change wallpaper (Windows only, safe no-op on Linux)
         // Uses "thank you.jpg" from the original mod, extracted by ShaderDeployer
@@ -160,19 +206,34 @@ public class MetaOrchestrator {
     private void executeBetrayal() {
         LOGGER.info("[SentientCoolplayer] ██ THE KILL-SWITCH HAS BEEN ACTIVATED ██");
 
-        // 1. Kill the AI bridge — silence
-        aiBridge.shutdown();
-        sentinelScanner.shutdown();
+        // Advance persona to OBSESSION and flag kill-switch imminent
+        // This makes the AI's next messages glitch before it shuts down
+        aiBridge.setPersonaPhase(VirtualThreadAI.PersonaPhase.OBSESSION);
+        aiBridge.setKillSwitchImminent(true);
 
-        // 2. Play a system-wide distorted scream (bypasses MC volume)
-        // Uses the jumpscare screamer sound from the original mod
-        PanamaSystemLink.playSystemSound(getResourcePath("scream_distorted.ogg"));
+        // Give the AI a few seconds to send one last glitched message before dying
+        ScheduledExecutorService killExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r);
+            t.setDaemon(true);
+            return t;
+        });
+        killExecutor.schedule(() -> {
+            // 1. Kill the AI bridge — silence
+            aiBridge.shutdown();
+            sentinelScanner.shutdown();
 
-        // 3. Flash the fake desktop overlay (entity behind windows)
-        DesktopIntrusion.showFakeOverlay();
+            // 2. Play a system-wide distorted scream (bypasses MC volume)
+            PanamaSystemLink.playSystemSound(getResourcePath("scream_distorted.ogg"));
 
-        // 4. Trigger the fake BSOD
-        DesktopIntrusion.showFakeBSOD();
+            // 3. Flash the fake desktop overlay (entity behind windows)
+            DesktopIntrusion.showFakeOverlay();
+
+            // 4. Trigger the fake BSOD
+            DesktopIntrusion.showFakeBSOD();
+
+            // 5. Clean up this executor
+            killExecutor.shutdown();
+        }, 4, TimeUnit.SECONDS);
     }
 
     private void executeAftermath() {
@@ -180,13 +241,21 @@ public class MetaOrchestrator {
         DesktopIntrusion.spawnPersistentTrace();
     }
 
+    // ─── SERVER STOPPING: Clean up resources ──────────────────────────
+    @SubscribeEvent
+    public void onServerStopping(ServerStoppingEvent event) {
+        LOGGER.info("[SentientCoolplayer] Server stopping — cleaning up executors.");
+        aiBridge.shutdown();
+        sentinelScanner.shutdown();
+    }
+
     // ─── UTILITY ──────────────────────────────────────────────────────
     private String getResourcePath(String filename) {
-        // Resolve from the mod's resource directory or a known path
         String userHome = System.getProperty("user.home");
         return userHome + "/.sentient_coolplayer/" + filename;
     }
 
     public Phase getCurrentPhase() { return currentPhase; }
     public VirtualThreadAI getAiBridge() { return aiBridge; }
+    public String getLastBiomeName() { return lastBiomeName; }
 }

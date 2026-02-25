@@ -6,10 +6,10 @@
       "request": "launch",
       "name": "Client",
       "presentation": {
-        "group": "Mod Development - horror mode",
+        "group": "Mod Development - sentient-coolplayer",
         "order": 0
       },
-      "projectName": "horror mode",
+      "projectName": "sentient-coolplayer",
       "mainClass": "net.neoforged.devlaunch.Main",
       "args": [
         "@/home/yahya/horror mode/build/moddev/clientRunProgramArgs.txt"
@@ -27,10 +27,10 @@
       "request": "launch",
       "name": "Server",
       "presentation": {
-        "group": "Mod Development - horror mode",
+        "group": "Mod Development - sentient-coolplayer",
         "order": 1
       },
-      "projectName": "horror mode",
+      "projectName": "sentient-coolplayer",
       "mainClass": "net.neoforged.devlaunch.Main",
       "args": [
         "@/home/yahya/horror mode/build/moddev/serverRunProgramArgs.txt"

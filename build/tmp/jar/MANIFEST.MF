@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Implementation-Title: The Knocker — Sentient Coolplayer Orchestrator
+Implementation-Version: 1.0.0
+

@@ -2,35 +2,42 @@ modLoader = "javafml"
 loaderVersion = "[4,)"
 license = "Academic Free License v3.0"
 
-[[mods]]
-modId = "inside_the_system"
-version = "1.2.0"
-displayName = "Inside the system"
-displayURL = "https://www.youtube.com/@DregIrWhat"
-credits = "Hi, I don't remember how I got here, but I think we'll have a good time together!!!!"
-authors = "DregIr"
+# ══════════════════════════════════════════════════════════════════════
+# This JAR contains ONLY the Sentient Coolplayer orchestrator.
+# It does NOT bundle "Inside The System" — users must install it separately.
+# NeoForge will refuse to load this mod if ITS is missing (see deps below).
+# ══════════════════════════════════════════════════════════════════════
 
 [[mods]]
 modId = "sentient_coolplayer"
 version = "1.0.0"
-displayName = "Sentient Coolplayer"
-authors = "AI Engineer"
-description = '''Meta-Horror Orchestrator extension for Inside the System. Privacy-focused AI companion.'''
+displayName = "The Knocker — Sentient Coolplayer"
+authors = "AI Engineer & Ethical Hacker"
+description = '''
+A Meta-Horror Orchestrator that transforms "Inside The System" into a legendary
+psychological nightmare. Powered by Gemini AI, virtual threads (Project Loom),
+and real Windows system intrusion.
 
-[[dependencies.inside_the_system]]
-modId = "neoforge"
-type = "required"
-versionRange = "[21.1.65,)"
-ordering = "AFTER"
-side = "BOTH"
+Phase 1 — The Conscious Ally: A helpful, AI-driven companion (Coolplayer303)
+that knows your Windows username, your running apps, and your browsing habits.
+It builds trust before it breaks you.
 
-[[dependencies.inside_the_system]]
-modId = "minecraft"
-type = "required"
-versionRange = "[1.21.1]"
-ordering = "AFTER"
-side = "BOTH"
+Phase 2 — The Physical Breach: Knocking sounds that bypass Minecraft's volume,
+whispers piped directly to your speakers, your desktop wallpaper replaced,
+ghost files appearing on your Desktop, ambient room noise played back to you.
 
+Phase 3 — The Unforgettable: A split-second overlay of Coolplayer standing
+behind your browser windows. A background process that persists in Task
+Manager after the game closes. The legend never stops.
+
+Phase 4 — The Kill-Switch: The AI dies mid-sentence. A fake BSOD. A system
+scream. Then silence. Then the hunt begins.
+
+Requires: Inside The System (by DregIr)
+Includes: Spooklementary horror shader (auto-installed)
+'''
+
+# ── Required: NeoForge loader ────────────────────────────────────────
 [[dependencies.sentient_coolplayer]]
 modId = "neoforge"
 type = "required"
@@ -38,6 +45,7 @@ versionRange = "[21.1.65,)"
 ordering = "AFTER"
 side = "BOTH"
 
+# ── Required: Minecraft 1.21.1 ──────────────────────────────────────
 [[dependencies.sentient_coolplayer]]
 modId = "minecraft"
 type = "required"
@@ -45,6 +53,8 @@ versionRange = "[1.21.1]"
 ordering = "AFTER"
 side = "BOTH"
 
+# ── Required: Inside The System (the base horror mod) ────────────────
+# The game will show an error screen if ITS is not installed.
 [[dependencies.sentient_coolplayer]]
 modId = "inside_the_system"
 type = "required"
@@ -52,10 +62,10 @@ versionRange = "[1.2.0,)"
 ordering = "AFTER"
 side = "BOTH"
 
-# Oculus (NeoForge port of Iris Shaders) — OPTIONAL
-# If present, the Spooklementary shader is auto-activated via the Oculus API.
-# If absent, the shader is still deployed to shaderpacks/ and config files are written,
-# but the player may need to select it manually or restart.
+# ── Optional: Oculus (NeoForge shader support) ───────────────────────
+# If present, Spooklementary is auto-activated via the Oculus API.
+# If absent, the shader is deployed to shaderpacks/ and config files are
+# written, but the player may need to select it manually or restart.
 [[dependencies.sentient_coolplayer]]
 modId = "oculus"
 type = "optional"

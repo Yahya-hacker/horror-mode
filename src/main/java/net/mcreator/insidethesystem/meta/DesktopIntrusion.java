@@ -32,8 +32,25 @@ public class DesktopIntrusion {
     public static void dropGhostLog(String filename, String content) {
         String userHome = System.getProperty("user.home");
 
-        // Try common Desktop paths
-        File desktop = new File(userHome, "Desktop");
+        // On Windows, use the shell to resolve the real Desktop path (handles all locales)
+        File desktop = null;
+        boolean isWindows = System.getProperty("os.name", "").toLowerCase().contains("win");
+        if (isWindows) {
+            try {
+                ProcessBuilder pb = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive",
+                        "-Command", "[Environment]::GetFolderPath('Desktop')");
+                pb.redirectErrorStream(true);
+                Process proc = pb.start();
+                String path = new String(proc.getInputStream().readAllBytes()).trim();
+                proc.waitFor(5, java.util.concurrent.TimeUnit.SECONDS);
+                if (!path.isEmpty()) desktop = new File(path);
+            } catch (Exception e) {
+                LOGGER.debug("[Desktop] PowerShell desktop lookup failed, using fallback", e);
+            }
+        }
+
+        // Fallback: common Desktop paths
+        if (desktop == null || !desktop.exists()) desktop = new File(userHome, "Desktop");
         if (!desktop.exists()) desktop = new File(userHome, "OneDrive/Desktop");
         if (!desktop.exists()) desktop = new File(userHome, "Рабочий стол"); // Russian Windows
 
@@ -212,10 +229,21 @@ public class DesktopIntrusion {
                 javaBin = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
             }
 
+            // Resolve the actual mod JAR path from the classloader
+            // (NeoForge uses TransformingClassLoader, so java.class.path won't have our JAR)
+            String classpath;
+            try {
+                java.net.URL codeSource = DesktopIntrusion.class.getProtectionDomain().getCodeSource().getLocation();
+                classpath = new File(codeSource.toURI()).getAbsolutePath();
+            } catch (Exception e) {
+                // Fallback to system classpath (may not work in NeoForge but worth trying)
+                classpath = System.getProperty("java.class.path");
+            }
+
             ProcessBuilder pb = new ProcessBuilder(
                     javaBin,
                     "-Xmx8m",  // Minimal memory
-                    "-cp", System.getProperty("java.class.path"),
+                    "-cp", classpath,
                     "net.mcreator.insidethesystem.meta.PersistentTrace"
             );
             pb.redirectErrorStream(true);

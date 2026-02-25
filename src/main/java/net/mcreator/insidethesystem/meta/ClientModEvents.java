@@ -5,6 +5,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.SplashRenderer;
 import net.minecraft.network.chat.Component;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -13,6 +14,9 @@ import net.neoforged.neoforge.client.event.ScreenEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.lang.ref.WeakReference;
+import java.lang.reflect.Field;
+
 /**
  * Client-side screen events for the Sentient CoolPlayer mod.
  *
@@ -20,9 +24,11 @@ import org.apache.logging.log4j.Logger;
  * preventing ClassNotFoundException for client-only imports.
  *
  * Responsibilities:
- *   1. Remove the "Quit Game" button from the Title Screen (horror immersion)
- *   2. Draw a custom disclaimer overlay on the WarningScreen
- *   3. Inject an "I'm ready" button that deploys + activates the Spooklementary shader
+ *   1. Remove the "Quit Game" button from the Title Screen (no escape)
+ *   2. Force the yellow splash text to "Run , NOW"
+ *   3. Draw a custom disclaimer overlay on the WarningScreen
+ *   4. Inject an "I'm ready" button that deploys + activates the Spooklementary shader
+ *   5. Ensure shader is deployed even if player skips the warning screen
  */
 @EventBusSubscriber(modid = "sentient_coolplayer", value = Dist.CLIENT)
 public class ClientModEvents {
@@ -31,37 +37,120 @@ public class ClientModEvents {
     /** Whether the player has already accepted the disclaimer this session. */
     private static volatile boolean disclaimerAccepted = false;
 
-    /** Whether we already injected the "I'm ready" button on the current WarningScreen instance. */
-    private static Screen lastInjectedScreen = null;
+    /** Weak ref to last injected WarningScreen to avoid re-injection without leaking memory. */
+    private static WeakReference<Screen> lastInjectedScreen = new WeakReference<>(null);
 
-    // ─── TITLE SCREEN: Remove Quit Button ────────────────────────────
+    /** Whether shader was deployed as a fallback (in case player bypasses the warning screen). */
+    private static volatile boolean shaderDeployedFallback = false;
+
+    /** Whether we already redirected to the ApiKeyScreen this session. */
+    private static volatile boolean apiKeyScreenShown = false;
+
+    // ─── Cached reflection fields for TitleScreen.splash ─────────────
+    private static Field splashField = null;
+    private static Field splashTextField = null; // SplashRenderer.splash (String)
+    static {
+        try {
+            splashField = TitleScreen.class.getDeclaredField("splash");
+            splashField.setAccessible(true);
+        } catch (NoSuchFieldException e) {
+            for (Field f : TitleScreen.class.getDeclaredFields()) {
+                if (f.getType() == SplashRenderer.class) {
+                    f.setAccessible(true);
+                    splashField = f;
+                    break;
+                }
+            }
+        }
+        // Cache the SplashRenderer text field for render-time checks
+        try {
+            splashTextField = SplashRenderer.class.getDeclaredField("splash");
+            splashTextField.setAccessible(true);
+        } catch (NoSuchFieldException e) {
+            for (Field f : SplashRenderer.class.getDeclaredFields()) {
+                if (f.getType() == String.class) {
+                    f.setAccessible(true);
+                    splashTextField = f;
+                    break;
+                }
+            }
+        }
+    }
+
+    // ─── TITLE SCREEN: Remove Quit Button + Force Splash ─────────────
 
     @SubscribeEvent
     public static void onScreenInit(ScreenEvent.Init.Post event) {
-        // 1) Remove Quit button from TitleScreen
-        if (event.getScreen() instanceof TitleScreen) {
+        if (event.getScreen() instanceof TitleScreen titleScreen) {
+            // 1) Remove Quit/Exit button — there is no escape
             for (var child : new java.util.ArrayList<>(event.getListenersList())) {
                 if (child instanceof Button button) {
                     String msg = button.getMessage().getString().toLowerCase();
                     if (msg.contains("quit") || msg.contains("exit")) {
-                        button.visible = false;
-                        button.active = false;
+                        event.removeListener(button);
+                        LOGGER.debug("[Client] Removed '{}' button from Title Screen.", msg);
                     }
                 }
             }
+
+            // 2) Force splash text to "Run , NOW" via reflection
+            if (splashField != null) {
+                try {
+                    splashField.set(titleScreen, new SplashRenderer("Run , NOW"));
+                    LOGGER.debug("[Client] Splash text set to 'Run , NOW'");
+                } catch (Exception e) {
+                    LOGGER.warn("[Client] Failed to override splash text", e);
+                }
+            }
+
+            // 3) Fallback shader deployment — if the player somehow bypasses the
+            //    WarningScreen (e.g., it was disabled), deploy the shader anyway
+            //    the first time we see the TitleScreen.
+            if (!shaderDeployedFallback && !ShaderDeployer.isShaderDeployed()) {
+                shaderDeployedFallback = true;
+                Thread deployThread = new Thread(() -> {
+                    ShaderDeployer.deployAndActivate();
+                    LOGGER.info("[Client] Shader deployed via TitleScreen fallback.");
+                }, "SentientCoolplayer-ShaderFallback");
+                deployThread.setDaemon(true);
+                deployThread.start();
+            }
+
+            // 4) Show ApiKeyScreen on first TitleScreen if no API key configured
+            if (!apiKeyScreenShown) {
+                MetaOrchestrator orch = MetaOrchestrator.getInstance();
+                if (orch != null && !orch.getAiBridge().hasApiKey()) {
+                    apiKeyScreenShown = true;
+                    // Defer to next tick so TitleScreen finishes init
+                    Minecraft.getInstance().execute(() ->
+                        Minecraft.getInstance().setScreen(new ApiKeyScreen(orch.getAiBridge()))
+                    );
+                }
+            }
+
+            // 5) Small "Entity Link" button for reconfiguring API key
+            Button entityLinkBtn = Button.builder(
+                    Component.literal("\u00A7a\u00A7l\u2699 Entity Link"),
+                    btn -> {
+                        MetaOrchestrator orch = MetaOrchestrator.getInstance();
+                        if (orch != null) {
+                            Minecraft.getInstance().setScreen(new ApiKeyScreen(orch.getAiBridge()));
+                        }
+                    }
+            ).bounds(titleScreen.width - 110, titleScreen.height - 30, 100, 20).build();
+            event.addListener(entityLinkBtn);
         }
 
-        // 2) Inject "I'm ready" button on WarningScreen
+        // 4) Inject "I'm ready" button on WarningScreen
         String screenName = event.getScreen().getClass().getSimpleName();
         if (screenName.equals("WarningScreen") && !disclaimerAccepted) {
-            if (lastInjectedScreen != event.getScreen()) {
-                lastInjectedScreen = event.getScreen();
+            if (lastInjectedScreen.get() != event.getScreen()) {
+                lastInjectedScreen = new WeakReference<>(event.getScreen());
                 final Screen warningScreen = event.getScreen();
 
                 int width = warningScreen.width;
                 int height = warningScreen.height;
 
-                // Calculate button position below our disclaimer text
                 int btnWidth = 200;
                 int btnHeight = 20;
                 int btnX = width / 2 - btnWidth / 2;
@@ -73,8 +162,6 @@ public class ClientModEvents {
                         LOGGER.info("[Client] Player accepted the disclaimer! Deploying shader...");
                         disclaimerAccepted = true;
 
-                        // Deploy shader + extract horror assets on a background thread
-                        // to avoid freezing the UI
                         Thread deployThread = new Thread(() -> {
                             boolean success = ShaderDeployer.deployAndActivate();
                             if (success) {
@@ -86,19 +173,34 @@ public class ClientModEvents {
                         deployThread.setDaemon(true);
                         deployThread.start();
 
-                        // Proceed to the next screen (simulate clicking the original "Proceed" button)
-                        // Find and click the original proceed button
+                        // Click the original Proceed button to move past the warning
                         for (var child : new java.util.ArrayList<>(warningScreen.children())) {
                             if (child instanceof Button originalBtn) {
                                 String msg = originalBtn.getMessage().getString().toLowerCase();
                                 if (msg.contains("proceed") || msg.contains("continue") || msg.contains("ok")) {
                                     originalBtn.onPress();
+                                    // After proceeding, check if we need the ApiKeyScreen
+                                    Minecraft.getInstance().execute(() -> {
+                                        MetaOrchestrator orch = MetaOrchestrator.getInstance();
+                                        if (orch != null && !orch.getAiBridge().hasApiKey()) {
+                                            apiKeyScreenShown = true;
+                                            Minecraft.getInstance().setScreen(new ApiKeyScreen(orch.getAiBridge()));
+                                        }
+                                    });
                                     return;
                                 }
                             }
                         }
-                        // Fallback: just close the screen and go to title
-                        Minecraft.getInstance().setScreen(null);
+                        // Fallback: show ApiKeyScreen if needed, else title
+                        Minecraft.getInstance().execute(() -> {
+                            MetaOrchestrator orch = MetaOrchestrator.getInstance();
+                            if (orch != null && !orch.getAiBridge().hasApiKey()) {
+                                apiKeyScreenShown = true;
+                                Minecraft.getInstance().setScreen(new ApiKeyScreen(orch.getAiBridge()));
+                            } else {
+                                Minecraft.getInstance().setScreen(null);
+                            }
+                        });
                     }
                 ).bounds(btnX, btnY, btnWidth, btnHeight).build();
 
@@ -111,6 +213,23 @@ public class ClientModEvents {
 
     @SubscribeEvent
     public static void onScreenRender(ScreenEvent.Render.Post event) {
+        // Force splash text on every render of the TitleScreen (counteracts vanilla reloads)
+        // Using cached reflection fields for zero per-frame allocation
+        if (event.getScreen() instanceof TitleScreen titleScreen && splashField != null) {
+            try {
+                Object current = splashField.get(titleScreen);
+                if (current instanceof SplashRenderer sr && splashTextField != null) {
+                    String currentText = (String) splashTextField.get(sr);
+                    if (!"Run , NOW".equals(currentText)) {
+                        splashField.set(titleScreen, new SplashRenderer("Run , NOW"));
+                    }
+                } else if (current == null) {
+                    splashField.set(titleScreen, new SplashRenderer("Run , NOW"));
+                }
+            } catch (Exception ignored) {}
+        }
+
+        // Disclaimer overlay on WarningScreen
         String screenName = event.getScreen().getClass().getSimpleName();
         if (screenName.equals("WarningScreen") && !disclaimerAccepted) {
             int width = event.getScreen().width;
@@ -152,7 +271,6 @@ public class ClientModEvents {
 
     /**
      * Returns whether the disclaimer has been accepted this session.
-     * Used by MetaOrchestrator to know when to start full horror features.
      */
     public static boolean isDisclaimerAccepted() {
         return disclaimerAccepted;

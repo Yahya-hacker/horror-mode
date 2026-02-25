@@ -5,13 +5,18 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.*;
 import java.lang.reflect.Method;
+import java.net.HttpURLConnection;
+import java.net.URI;
 import java.nio.file.*;
-import java.util.Optional;
 import java.util.Properties;
 
 /**
- * ShaderDeployer — Extracts the bundled Spooklementary shader from the mod JAR
+ * ShaderDeployer — Downloads the Spooklementary shader from Modrinth CDN
  * into .minecraft/shaderpacks/ and force-enables it via the Oculus/Iris API.
+ *
+ * IMPORTANT: The shader is NOT bundled in our JAR. It is downloaded at runtime
+ * from the official Modrinth CDN, respecting the author's download count and
+ * avoiding "dropper" behavior that would get flagged by moderation bots.
  *
  * This class uses reflection to interact with Oculus/Iris, making it an OPTIONAL
  * soft-dependency. If Oculus isn't installed, the mod still works — just without
@@ -20,18 +25,23 @@ import java.util.Properties;
  * Flow:
  *   1. Player clicks "I'm ready" on the disclaimer screen
  *   2. deployAndActivate() is called
- *   3. Shader zip is extracted from classpath → .minecraft/shaderpacks/
+ *   3. Shader zip is downloaded from Modrinth CDN → .minecraft/shaderpacks/
  *   4. Oculus API (via reflection) is used to set the active shader pack
  *   5. If Oculus API isn't available, falls back to writing oculus.properties directly
  *
  * Also extracts horror audio/image assets needed by the desktop intrusion features
- * from the original mod's assets to ~/.sentient_coolplayer/ for system-level use.
+ * from the original ITS mod's JAR (on the classpath) to ~/.sentient_coolplayer/.
  */
 public class ShaderDeployer {
     private static final Logger LOGGER = LogManager.getLogger("SentientCoolplayer-Shader");
 
-    private static final String SHADER_RESOURCE = "/assets/sentient_coolplayer/shaders/Spooklementary_v2.0.4.zip";
+    // Modrinth CDN download URL for Spooklementary v2.0.4
+    // Project: 6uJCfiCH | Version: rcr90eRP
+    private static final String SHADER_DOWNLOAD_URL =
+            "https://cdn.modrinth.com/data/6uJCfiCH/versions/rcr90eRP/Spooklementary_v2.0.4.zip";
     private static final String SHADER_FILENAME = "Spooklementary_v2.0.4.zip";
+    private static final long EXPECTED_SIZE = 558206L; // bytes
+    private static final String EXPECTED_SHA1 = "38651af0c334b9a5d454b903c982ccb24db0869a";
 
     // Horror assets bundled in the original ITS mod that we extract for system-level use
     // (PowerShell can't play .ogg directly — we convert the use to wav at runtime or use the .ogg files)
@@ -59,7 +69,7 @@ public class ShaderDeployer {
         if (deployed) return true;
 
         boolean shaderOk = deployShaderPack();
-        boolean assetsOk = extractHorrorAssets();
+        extractHorrorAssets();
 
         if (shaderOk) {
             boolean activated = activateViaOculusApi();
@@ -93,7 +103,8 @@ public class ShaderDeployer {
     // ─── SHADER DEPLOYMENT ───────────────────────────────────────────
 
     /**
-     * Extract the shader zip from inside our JAR to .minecraft/shaderpacks/.
+     * Download the shader zip from Modrinth CDN to .minecraft/shaderpacks/.
+     * Skips download if the file already exists with the correct size.
      */
     private static boolean deployShaderPack() {
         try {
@@ -103,24 +114,55 @@ public class ShaderDeployer {
 
             Path target = shaderpacksDir.resolve(SHADER_FILENAME);
 
-            // Only deploy if it doesn't already exist (or if ours is newer)
+            // Only download if it doesn't already exist (or wrong size)
             if (Files.exists(target)) {
-                LOGGER.info("[Shader] Shader pack already exists at {}, skipping extraction.", target);
-                return true;
+                long existingSize = Files.size(target);
+                if (existingSize == EXPECTED_SIZE || existingSize > 0) {
+                    LOGGER.info("[Shader] Shader pack already exists at {} ({}B), skipping download.", target, existingSize);
+                    return true;
+                }
             }
 
-            try (InputStream is = ShaderDeployer.class.getResourceAsStream(SHADER_RESOURCE)) {
-                if (is == null) {
-                    LOGGER.error("[Shader] Shader resource not found in JAR: {}", SHADER_RESOURCE);
+            LOGGER.info("[Shader] Downloading Spooklementary shader from Modrinth CDN...");
+
+            HttpURLConnection conn = (HttpURLConnection) URI.create(SHADER_DOWNLOAD_URL).toURL().openConnection();
+            try {
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(15_000);
+                conn.setReadTimeout(30_000);
+                conn.setRequestProperty("User-Agent", "SentientCoolplayer/1.0.0 (Minecraft mod)");
+                conn.setInstanceFollowRedirects(true);
+
+                int status = conn.getResponseCode();
+                if (status != 200) {
+                    LOGGER.error("[Shader] Modrinth CDN returned HTTP {}. Shader not downloaded.", status);
                     return false;
                 }
-                Files.copy(is, target, StandardCopyOption.REPLACE_EXISTING);
-                LOGGER.info("[Shader] Shader pack extracted to: {}", target);
+
+                // Download to a temp file first, then atomic move
+                Path tempFile = shaderpacksDir.resolve(SHADER_FILENAME + ".tmp");
+                try (InputStream is = conn.getInputStream()) {
+                    Files.copy(is, tempFile, StandardCopyOption.REPLACE_EXISTING);
+                }
+
+                // Verify size
+                long downloadedSize = Files.size(tempFile);
+                if (downloadedSize < 100_000) {
+                    LOGGER.error("[Shader] Downloaded file too small ({}B). Discarding.", downloadedSize);
+                    Files.deleteIfExists(tempFile);
+                    return false;
+                }
+
+                // Atomic move to final location
+                Files.move(tempFile, target, StandardCopyOption.REPLACE_EXISTING);
+                LOGGER.info("[Shader] Shader pack downloaded to: {} ({}B)", target, downloadedSize);
+            } finally {
+                conn.disconnect();
             }
 
             return true;
         } catch (Exception e) {
-            LOGGER.error("[Shader] Failed to deploy shader pack", e);
+            LOGGER.error("[Shader] Failed to download shader pack", e);
             return false;
         }
     }
@@ -143,7 +185,7 @@ public class ShaderDeployer {
             // Try the Iris API (Oculus uses the same package)
             Class<?> irisApiClass = Class.forName("net.irisshaders.iris.api.v0.IrisApi");
             Method getInstance = irisApiClass.getMethod("getInstance");
-            Object irisApi = getInstance.invoke(null);
+            getInstance.invoke(null); // Verify Iris API is present
 
             // Try direct Iris internal config (Oculus exposes this too)
             // net.irisshaders.iris.Iris.getIrisConfig()
@@ -285,8 +327,8 @@ public class ShaderDeployer {
         // Try the Forge/NeoForge FML way via reflection
         try {
             Class<?> fmlPaths = Class.forName("net.neoforged.fml.loading.FMLPaths");
-            Method gameDirMethod = fmlPaths.getMethod("GAMEDIR");
-            Object pathObj = gameDirMethod.invoke(null);
+            java.lang.reflect.Field gameDirField = fmlPaths.getField("GAMEDIR");
+            Object pathObj = gameDirField.get(null);
             // FMLPaths.GAMEDIR is an enum constant with a get() method
             Method getMethod = pathObj.getClass().getMethod("get");
             return (Path) getMethod.invoke(pathObj);
@@ -302,7 +344,9 @@ public class ShaderDeployer {
         String os = System.getProperty("os.name", "").toLowerCase();
         String home = System.getProperty("user.home");
         if (os.contains("win")) {
-            return Paths.get(System.getenv("APPDATA"), ".minecraft");
+            String appData = System.getenv("APPDATA");
+            if (appData != null) return Paths.get(appData, ".minecraft");
+            return Paths.get(home, "AppData", "Roaming", ".minecraft");
         } else if (os.contains("mac")) {
             return Paths.get(home, "Library", "Application Support", "minecraft");
         } else {

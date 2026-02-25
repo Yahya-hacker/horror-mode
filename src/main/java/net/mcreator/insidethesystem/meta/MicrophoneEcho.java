@@ -79,25 +79,24 @@ public class MicrophoneEcho {
             return null;
         }
 
-        TargetDataLine line = (TargetDataLine) AudioSystem.getLine(info);
-        line.open(format);
-        line.start();
+        try (TargetDataLine line = (TargetDataLine) AudioSystem.getLine(info)) {
+            line.open(format);
+            line.start();
 
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        byte[] chunk = new byte[4096];
-        long endTime = System.currentTimeMillis() + (RECORD_SECONDS * 1000L);
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+            byte[] chunk = new byte[4096];
+            long endTime = System.currentTimeMillis() + (RECORD_SECONDS * 1000L);
 
-        while (System.currentTimeMillis() < endTime) {
-            int bytesRead = line.read(chunk, 0, chunk.length);
-            if (bytesRead > 0) {
-                buffer.write(chunk, 0, bytesRead);
+            while (System.currentTimeMillis() < endTime) {
+                int bytesRead = line.read(chunk, 0, chunk.length);
+                if (bytesRead > 0) {
+                    buffer.write(chunk, 0, bytesRead);
+                }
             }
+
+            line.stop();
+            return buffer.toByteArray();
         }
-
-        line.stop();
-        line.close();
-
-        return buffer.toByteArray();
     }
 
     private static void playbackAmbient(byte[] audioData) throws Exception {
@@ -116,18 +115,18 @@ public class MicrophoneEcho {
         AudioInputStream ais = new AudioInputStream(bais, format, quietData.length / format.getFrameSize());
 
         DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
-        SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info);
-        line.open(format);
-        line.start();
+        try (SourceDataLine line = (SourceDataLine) AudioSystem.getLine(info)) {
+            line.open(format);
+            line.start();
 
-        byte[] chunk = new byte[4096];
-        int bytesRead;
-        while ((bytesRead = ais.read(chunk, 0, chunk.length)) != -1) {
-            line.write(chunk, 0, bytesRead);
+            byte[] chunk = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = ais.read(chunk, 0, chunk.length)) != -1) {
+                line.write(chunk, 0, bytesRead);
+            }
+
+            line.drain();
         }
-
-        line.drain();
-        line.close();
 
         LOGGER.info("[MicEcho] Ambient echo playback complete. Audio buffer discarded.");
         // Audio data is now eligible for GC — never saved anywhere

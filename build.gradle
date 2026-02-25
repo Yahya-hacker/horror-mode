@@ -6,7 +6,7 @@ version = '1.0.0'
 group = 'net.mcreator.insidethesystem'
 
 base {
-    archivesName = 'sentient-coolplayer'
+    archivesName = 'The Knocker'
 }
 
 java {
@@ -30,14 +30,38 @@ tasks.named('processResources') {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
+// ─── REPOSITORIES ──────────────────────────────────────────────────
 repositories {
     mavenCentral()
+
+    // Modrinth Maven — for downloading 'Inside The System' at compile time
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "Modrinth"
+                url = "https://api.modrinth.com/maven"
+            }
+        }
+        filter {
+            includeGroup "maven.modrinth"
+        }
+    }
 }
 
+// ─── DEPENDENCIES ──────────────────────────────────────────────────
+//
+// IMPORTANT: Nothing here is bundled into the output JAR.
+// All dependencies are compileOnly — provided at runtime by NeoForge + the
+// user's mods folder. The final JAR contains ONLY our meta/ code + metadata.
+// The Spooklementary shader is downloaded at runtime from Modrinth CDN.
+//
 dependencies {
-    // All compile-only — provided at runtime by NeoForge + Minecraft
-    compileOnly files('ITS (1.21.1) 1.2.jar')                            // Original mod
-    compileOnly fileTree(dir: 'libs', include: '*.jar')                   // NeoForge + MC + libs
+    // NeoForge + Minecraft (provided at runtime by the mod loader)
+    compileOnly fileTree(dir: 'libs', include: '*.jar')
+
+    // Inside The System — REQUIRED at runtime (user must install separately)
+    // Modrinth project: inside-the-system | Version ID: 5F6e3ncA (v1.2.0, NeoForge 1.21.1)
+    compileOnly 'maven.modrinth:inside-the-system:5F6e3ncA'
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -45,39 +69,46 @@ tasks.withType(JavaCompile).configureEach {
     options.release = 21
 }
 
+// ─── JAR TASK ──────────────────────────────────────────────────────
+// Produces ONLY our code + resources. No external mods or shaders bundled.
+// Contents:
+//   - net/mcreator/insidethesystem/meta/*.class  (our orchestrator classes)
+//   - assets/minecraft/texts/splashes.txt
+//   - META-INF/neoforge.mods.toml  (declares sentient_coolplayer, requires ITS)
+//   - META-INF/mods.toml           (legacy fallback)
+//
 jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
     manifest {
         attributes([
-            'Implementation-Title'  : 'Sentient Coolplayer',
+            'Implementation-Title'  : 'The Knocker — Sentient Coolplayer Orchestrator',
             'Implementation-Version': project.version,
         ])
     }
 }
 
-tasks.register('mergedJar', Jar) {
-    dependsOn(tasks.classes)
+// ─── MRPACK TASK ───────────────────────────────────────────────────
+// Builds a Modrinth .mrpack modpack that references:
+//   - Inside The System (from Modrinth)
+//   - Spooklementary shader (from Modrinth)
+//   - The Knocker JAR (as override in overrides/mods/)
+//
+tasks.register('mrpack', Zip) {
+    dependsOn(tasks.jar)
+    archiveBaseName = 'The Knocker'
+    archiveVersion = project.version
+    archiveExtension = 'mrpack'
+    destinationDirectory = file("$buildDir/mrpack")
 
-    archiveBaseName = 'inside-the-system-sentient'
-    archiveVersion = '1.2.0'
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-
-    // 1) Bring in the original Inside the System mod (all assets/data/code)
-    from(zipTree(file('ITS (1.21.1) 1.2.jar'))) {
-        // Replace all metadata with our combined descriptors
-        exclude 'META-INF/MANIFEST.MF'
-        exclude 'META-INF/mods.toml'
-        exclude 'META-INF/neoforge.mods.toml'
+    from('mrpack') {
+        include 'modrinth.index.json'
     }
-
-    // 2) Overlay sentient extension classes/resources (including combined neoforge.mods.toml)
-    from(sourceSets.main.output)
-
-    manifest {
-        attributes([
-            'Implementation-Title'  : 'Inside the System + Sentient Coolplayer',
-            'Implementation-Version': archiveVersion.get(),
-        ])
+    from('mrpack/overrides') {
+        into 'overrides'
+    }
+    // Include our built JAR as a mod override
+    from(tasks.jar.archiveFile) {
+        into 'overrides/mods'
     }
 }

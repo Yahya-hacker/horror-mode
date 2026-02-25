@@ -1,0 +1,43 @@
+{
+  "formatVersion": 1,
+  "game": "minecraft",
+  "versionId": "1.0.0",
+  "name": "The Knocker — Sentient Coolplayer",
+  "summary": "A Meta-Horror Orchestrator that transforms 'Inside The System' into a legendary psychological nightmare. Powered by Gemini AI, virtual threads, and real Windows system intrusion.",
+  "files": [
+    {
+      "path": "mods/ITS (1.21.1) 1.2.jar",
+      "hashes": {
+        "sha1": "9e44cf11c472804214c3ab222526ac0dd1c218e",
+        "sha512": "6d24caeaaa58529c4d25ca2d934fd47e6d4129f68565f45425cc4421909d5bc69065aee7622c5c279cb5b9dfe32454a77529d46497bd13e6ed5755ea96b24be"
+      },
+      "env": {
+        "client": "required",
+        "server": "required"
+      },
+      "downloads": [
+        "https://cdn.modrinth.com/data/h3PeiHjb/versions/5F6e3ncA/ITS%20%281.21.1%29%201.2.jar"
+      ],
+      "fileSize": 29149352
+    },
+    {
+      "path": "shaderpacks/Spooklementary_v2.0.4.zip",
+      "hashes": {
+        "sha1": "38651af0c334b9a5d454b903c982ccb24db0869a",
+        "sha512": "64d6e2442253bbe016ba88cb347884b34e261deed846b96185d33dd9e9c3e79706a3ef4aa6b563793951e02edfff6349a3fb7f72c9574b49f3e7a07f39eaa6f9"
+      },
+      "env": {
+        "client": "required",
+        "server": "unsupported"
+      },
+      "downloads": [
+        "https://cdn.modrinth.com/data/6uJCfiCH/versions/rcr90eRP/Spooklementary_v2.0.4.zip"
+      ],
+      "fileSize": 558206
+    }
+  ],
+  "dependencies": {
+    "minecraft": "1.21.1",
+    "neoforge": "21.1.65"
+  }
+}

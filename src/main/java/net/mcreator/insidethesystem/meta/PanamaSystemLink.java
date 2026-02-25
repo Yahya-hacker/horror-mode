@@ -6,6 +6,7 @@ import org.apache.logging.log4j.Logger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 /**
  * PanamaSystemLink — Windows system bridge using Runtime.exec() + PowerShell.
@@ -74,7 +75,7 @@ public class PanamaSystemLink {
             ProcessBuilder pb = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", psScript);
             pb.redirectErrorStream(true);
             Process proc = pb.start();
-            proc.waitFor();
+            proc.waitFor(10, TimeUnit.SECONDS);
             LOGGER.info("[Panama] Wallpaper set to '{}'", absolutePath);
         } catch (Exception e) {
             LOGGER.error("[Panama] Failed to set wallpaper", e);
@@ -119,6 +120,7 @@ public class PanamaSystemLink {
 
             ProcessBuilder pb = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", psScript);
             pb.redirectErrorStream(true);
+            pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);
             pb.start(); // Fire and forget — async playback
             LOGGER.info("[Panama] Playing system sound '{}'", absolutePath);
         } catch (Exception e) {
