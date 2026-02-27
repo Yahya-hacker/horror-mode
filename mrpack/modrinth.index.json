@@ -8,8 +8,8 @@
     {
       "path": "mods/ITS (1.21.1) 1.2.jar",
       "hashes": {
-        "sha1": "9e44cf11c472804214c3ab222526ac0dd1c218e",
-        "sha512": "6d24caeaaa58529c4d25ca2d934fd47e6d4129f68565f45425cc4421909d5bc69065aee7622c5c279cb5b9dfe32454a77529d46497bd13e6ed5755ea96b24be"
+        "sha1": "9e44cf11c4572804214c3ab222526ac0dd1c218e",
+        "sha512": "6d24caeaaa58529c4d25ca2d934fd47e6d4129f68565f45425cc4421909d5bc69065caee7622c5c279cb5b9dfe32454a77529d46497bd13e6ed5755ea96b24be"
       },
       "env": {
         "client": "required",

@@ -42,7 +42,7 @@ public class MetaOrchestrator {
         AFTERMATH       // Persistent background trace after game close
     }
 
-    private static MetaOrchestrator INSTANCE;
+    private static volatile MetaOrchestrator INSTANCE;
     private volatile Phase currentPhase = Phase.ALLY;
     private final VirtualThreadAI aiBridge = new VirtualThreadAI();
     private final ScheduledExecutorService sentinelScanner = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -76,6 +76,16 @@ public class MetaOrchestrator {
 
         // Start the system sentinel (process scanner)
         startSentinel();
+
+        // ─── GEOLOCATION: Fetch player's real location from IP ────────
+        // This runs async and caches the result for the AI to use.
+        GeoLocationService.fetchAsync().thenAccept(geo -> {
+            if (geo != null) {
+                LOGGER.info("[SentientCoolplayer] Geo: {} ({}, {})", geo.shortLocation(), geo.lat(), geo.lon());
+            } else {
+                LOGGER.warn("[SentientCoolplayer] Geolocation unavailable — AI will not use real location");
+            }
+        });
     }
 
     public static MetaOrchestrator getInstance() {

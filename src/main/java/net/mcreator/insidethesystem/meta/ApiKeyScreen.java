@@ -11,8 +11,6 @@ import net.minecraft.network.chat.Component;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.net.URI;
-
 /**
  * ApiKeyScreen — A retro "System Override" terminal UI themed as part of the mod's lore.
  *
@@ -82,20 +80,7 @@ public class ApiKeyScreen extends Screen {
         // ── "Generate Access Key" button ─────────────────────────────
         generateButton = Button.builder(
                 Component.literal("§a§l[ Generate Access Key ]"),
-                btn -> {
-                    try {
-                        // Open the browser to Google AI Studio API key page
-                        java.awt.Desktop.getDesktop().browse(URI.create(API_KEY_URL));
-                    } catch (Exception e) {
-                        LOGGER.warn("[ApiKey] Could not open browser", e);
-                        // Fallback: try xdg-open on Linux
-                        try {
-                            new ProcessBuilder("xdg-open", API_KEY_URL).start();
-                        } catch (Exception e2) {
-                            LOGGER.error("[ApiKey] Failed to open URL", e2);
-                        }
-                    }
-                }
+                btn -> openBrowser(API_KEY_URL)
         ).bounds(centerX - 100, centerY + 20, 200, 20).build();
         this.addRenderableWidget(generateButton);
 
@@ -280,6 +265,35 @@ public class ApiKeyScreen extends Screen {
                                     int x, int y, int color) {
         int textWidth = font.width(text);
         graphics.drawString(font, text, x - textWidth / 2, y, color);
+    }
+
+    /**
+     * Opens a URL in the system browser using OS-native commands.
+     * java.awt.Desktop.browse() conflicts with LWJGL/GLFW inside Minecraft,
+     * so we use OS-specific process commands instead.
+     */
+    private void openBrowser(String url) {
+        String os = System.getProperty("os.name", "").toLowerCase();
+        try {
+            ProcessBuilder pb;
+            if (os.contains("win")) {
+                // Windows: use cmd /c start (handles spaces and special chars)
+                pb = new ProcessBuilder("cmd", "/c", "start", "", url);
+            } else if (os.contains("mac")) {
+                pb = new ProcessBuilder("open", url);
+            } else {
+                // Linux: xdg-open
+                pb = new ProcessBuilder("xdg-open", url);
+            }
+            pb.redirectErrorStream(true);
+            pb.start();
+            LOGGER.info("[ApiKey] Opened browser: {}", url);
+        } catch (Exception e) {
+            LOGGER.error("[ApiKey] Failed to open browser: {}", url, e);
+            // Show the URL in the status message so the user can copy it
+            validationState = ValidationState.FAILED;
+            statusMessage = "§c> Could not open browser. Visit: §e" + url;
+        }
     }
 
     @Override

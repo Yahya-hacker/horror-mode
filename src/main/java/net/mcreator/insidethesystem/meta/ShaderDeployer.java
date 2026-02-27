@@ -115,13 +115,15 @@ public class ShaderDeployer {
 
             Path target = shaderpacksDir.resolve(SHADER_FILENAME);
 
-            // Only download if it doesn't already exist (or wrong size)
+            // Only download if it doesn't already exist with the correct size
             if (Files.exists(target)) {
                 long existingSize = Files.size(target);
-                if (existingSize == EXPECTED_SIZE || existingSize > 0) {
+                if (existingSize == EXPECTED_SIZE) {
                     LOGGER.info("[Shader] Shader pack already exists at {} ({}B), skipping download.", target, existingSize);
                     return true;
                 }
+                // Wrong size = corrupted or partial download, re-download
+                LOGGER.warn("[Shader] Existing file has wrong size ({}B vs expected {}B), re-downloading.", existingSize, EXPECTED_SIZE);
             }
 
             LOGGER.info("[Shader] Downloading Spooklementary shader from Modrinth CDN...");
@@ -294,10 +296,13 @@ public class ShaderDeployer {
     // ─── HORROR ASSET EXTRACTION ─────────────────────────────────────
 
     /**
-     * Extract audio/image assets from the mod JAR to ~/.sentient_coolplayer/.
+     * Extract audio/image assets from the ITS mod's JAR to ~/.sentient_coolplayer/.
      * These files need to be on the real filesystem for:
-     *   - PowerShell audio playback (can't play from inside a JAR)
+     *   - OGG audio playback (decoded via LWJGL STBVorbis, played via Java AudioSystem)
      *   - Windows wallpaper API (needs an actual file path)
+     *
+     * Since ITS is a SEPARATE mod JAR (not bundled in ours), we use multiple
+     * classloader strategies to locate resources from ITS's JAR at runtime.
      */
     private static boolean extractHorrorAssets() {
         try {
@@ -315,11 +320,12 @@ public class ShaderDeployer {
                     continue;
                 }
 
-                try (InputStream is = ShaderDeployer.class.getResourceAsStream(resourcePath)) {
-                    if (is == null) {
-                        LOGGER.warn("[Assets] Resource not found in JAR: {}", resourcePath);
-                        continue;
-                    }
+                InputStream is = findModResource(resourcePath);
+                if (is == null) {
+                    LOGGER.warn("[Assets] Resource not found in any mod JAR: {}", resourcePath);
+                    continue;
+                }
+                try (is) {
                     Files.copy(is, target, StandardCopyOption.REPLACE_EXISTING);
                     LOGGER.info("[Assets] Extracted: {} → {}", resourcePath, target);
                 }
@@ -330,6 +336,57 @@ public class ShaderDeployer {
             LOGGER.error("[Assets] Failed to extract horror assets", e);
             return false;
         }
+    }
+
+    /**
+     * Locate a resource from the ITS mod's JAR using multiple classloader strategies.
+     * NeoForge's modular classloading means Class.getResourceAsStream() from OUR mod
+     * won't find resources in ANOTHER mod's JAR. This method tries three approaches:
+     *
+     * 1. Load a class from ITS and use its resource loader (searches ITS's JAR)
+     * 2. Use Thread.contextClassLoader (NeoForge's TransformingClassLoader, searches all JARs)
+     * 3. Fallback to our own classloader (may work in some setups)
+     *
+     * @param resourcePath  Absolute resource path (e.g. "/assets/inside_the_system/sounds/foo.ogg")
+     * @return InputStream for the resource, or null if not found
+     */
+    private static InputStream findModResource(String resourcePath) {
+        // Classloader-style path (no leading /)
+        String clPath = resourcePath.startsWith("/") ? resourcePath.substring(1) : resourcePath;
+
+        // Strategy 1: Use a class from the ITS mod JAR to search ITS's resources
+        try {
+            Class<?> itsClass = Class.forName(
+                    "net.mcreator.insidethesystem.network.InsideTheSystemModVariables");
+            InputStream is = itsClass.getResourceAsStream(resourcePath);
+            if (is != null) {
+                LOGGER.debug("[Assets] Found via ITS classloader: {}", resourcePath);
+                return is;
+            }
+        } catch (ClassNotFoundException e) {
+            LOGGER.debug("[Assets] ITS mod class not found (mod not loaded yet?)");
+        }
+
+        // Strategy 2: NeoForge's TransformingClassLoader (searches all mod JARs)
+        try {
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            if (cl != null) {
+                InputStream is = cl.getResourceAsStream(clPath);
+                if (is != null) {
+                    LOGGER.debug("[Assets] Found via context classloader: {}", resourcePath);
+                    return is;
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.debug("[Assets] Context classloader lookup failed");
+        }
+
+        // Strategy 3: Our own classloader (last resort)
+        InputStream is = ShaderDeployer.class.getResourceAsStream(resourcePath);
+        if (is != null) {
+            LOGGER.debug("[Assets] Found via own classloader: {}", resourcePath);
+        }
+        return is;
     }
 
     // ─── UTILITY ─────────────────────────────────────────────────────

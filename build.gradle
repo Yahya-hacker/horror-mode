@@ -62,6 +62,11 @@ dependencies {
     // Inside The System — REQUIRED at runtime (user must install separately)
     // Modrinth project: inside-the-system | Version ID: 5F6e3ncA (v1.2.0, NeoForge 1.21.1)
     compileOnly 'maven.modrinth:inside-the-system:5F6e3ncA'
+
+    // LWJGL STBVorbis (OGG decoder) — provided at runtime by Minecraft's LWJGL 3.3.3
+    // Needed at compile time for PanamaSystemLink's cross-platform audio playback
+    compileOnly 'org.lwjgl:lwjgl:3.3.3'
+    compileOnly 'org.lwjgl:lwjgl-stb:3.3.3'
 }
 
 tasks.withType(JavaCompile).configureEach {

@@ -2,7 +2,17 @@ package net.mcreator.insidethesystem.meta;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.lwjgl.stb.STBVorbis;
+import org.lwjgl.stb.STBVorbisInfo;
+import org.lwjgl.system.MemoryStack;
+import org.lwjgl.system.MemoryUtil;
 
+import javax.sound.sampled.*;
+import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
+import java.nio.ShortBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -82,33 +92,48 @@ public class PanamaSystemLink {
         }
     }
 
-    // ─── AUDIO BYPASS (Windows only, PowerShell) ──────────────────────
+    // ─── AUDIO BYPASS ─────────────────────────────────────────────────
 
     /**
-     * Plays an audio file through the Windows Default Audio Output using PowerShell.
-     * This BYPASSES Minecraft's Master Volume — the player hears it even at 0%.
+     * Plays an audio file through the system's Default Audio Output, BYPASSING
+     * Minecraft's Master Volume — the player hears it even at 0%.
      *
-     * Supports both .wav (via SoundPlayer) and .ogg/.mp3 (via Windows Media Player COM).
-     * No-op on non-Windows systems.
+     * Routing:
+     *   - .ogg → LWJGL STBVorbis decoder + Java AudioSystem (cross-platform)
+     *   - .wav on Windows → PowerShell SoundPlayer
+     *   - Other on Windows → Windows Media Player COM object (requires codecs)
      */
     public static void playSystemSound(String absolutePath) {
+        if (absolutePath == null || absolutePath.isEmpty()) {
+            LOGGER.debug("[Panama] playSystemSound called with null/empty path");
+            return;
+        }
+
+        String lower = absolutePath.toLowerCase();
+
+        // OGG files: decode with LWJGL STBVorbis + play through Java AudioSystem
+        // Cross-platform, no external codecs needed, bypasses MC volume
+        if (lower.endsWith(".ogg")) {
+            playOggViaJavaAudio(absolutePath);
+            return;
+        }
+
+        // All remaining formats require Windows + PowerShell
         if (!IS_WINDOWS) {
-            LOGGER.debug("[Panama] playSystemSound skipped (not Windows)");
+            LOGGER.debug("[Panama] playSystemSound skipped for non-OGG on non-Windows: {}", absolutePath);
             return;
         }
 
         try {
             String psScript;
-            if (absolutePath.toLowerCase().endsWith(".wav")) {
+            if (lower.endsWith(".wav")) {
                 // .wav files: use System.Media.SoundPlayer (simple, reliable)
                 psScript =
                     "(New-Object System.Media.SoundPlayer \"" +
                     absolutePath.replace("\"", "`\"") +
                     "\").PlaySync()";
             } else {
-                // .ogg, .mp3, etc: use Windows Media Player COM object
-                // WMP supports OGG if proper codecs are installed (Windows 10/11 have them via store)
-                // Falls back gracefully if the format isn't supported
+                // .mp3 etc: use Windows Media Player COM object (may require codecs)
                 psScript =
                     "$wmp = New-Object -ComObject WMPlayer.OCX; " +
                     "$media = $wmp.newMedia(\"" + absolutePath.replace("\"", "`\"") + "\"); " +
@@ -122,9 +147,95 @@ public class PanamaSystemLink {
             pb.redirectErrorStream(true);
             pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);
             pb.start(); // Fire and forget — async playback
-            LOGGER.info("[Panama] Playing system sound '{}'", absolutePath);
+            LOGGER.info("[Panama] Playing system sound: '{}'", absolutePath);
         } catch (Exception e) {
             LOGGER.error("[Panama] Failed to play system sound", e);
         }
+    }
+
+    /**
+     * Decodes an OGG Vorbis file using LWJGL's STBVorbis (bundled with Minecraft)
+     * and plays the raw PCM through Java's SourceDataLine API.
+     *
+     * This approach:
+     *   1. Supports OGG natively — STBVorbis is part of MC's LWJGL runtime
+     *   2. Bypasses Minecraft's volume — uses the OS audio mixer directly
+     *   3. Cross-platform — works on Windows, Linux, and macOS
+     *   4. Async — runs on a daemon thread, returns immediately
+     */
+    private static void playOggViaJavaAudio(String absolutePath) {
+        Thread t = new Thread(() -> {
+            ByteBuffer fileBuffer = null;
+            try {
+                byte[] fileBytes = Files.readAllBytes(Path.of(absolutePath));
+                fileBuffer = MemoryUtil.memAlloc(fileBytes.length);
+                fileBuffer.put(fileBytes).flip();
+
+                int channels, sampleRate;
+                byte[] audioBytes;
+
+                try (MemoryStack stack = MemoryStack.stackPush()) {
+                    IntBuffer error = stack.mallocInt(1);
+                    long decoder = STBVorbis.stb_vorbis_open_memory(fileBuffer, error, null);
+                    if (decoder == 0L) {
+                        LOGGER.warn("[Panama] STBVorbis decode failed (error {}): {}",
+                                error.get(0), absolutePath);
+                        return;
+                    }
+
+                    ShortBuffer pcm = null;
+                    try {
+                        STBVorbisInfo info = STBVorbisInfo.malloc(stack);
+                        STBVorbis.stb_vorbis_get_info(decoder, info);
+                        channels = info.channels();
+                        sampleRate = info.sample_rate();
+                        int totalSamples = STBVorbis.stb_vorbis_stream_length_in_samples(decoder);
+
+                        pcm = MemoryUtil.memAllocShort(totalSamples * channels);
+                        int framesDecoded = STBVorbis.stb_vorbis_get_samples_short_interleaved(
+                                decoder, channels, pcm);
+                        int totalShorts = framesDecoded * channels;
+
+                        // Convert interleaved short samples to little-endian byte array
+                        audioBytes = new byte[totalShorts * 2];
+                        for (int i = 0; i < totalShorts; i++) {
+                            short s = pcm.get(i);
+                            audioBytes[i * 2] = (byte) (s & 0xFF);
+                            audioBytes[i * 2 + 1] = (byte) ((s >> 8) & 0xFF);
+                        }
+                    } finally {
+                        STBVorbis.stb_vorbis_close(decoder);
+                        if (pcm != null) MemoryUtil.memFree(pcm);
+                    }
+                }
+
+                // Release the file buffer (decoder is closed, data is in audioBytes)
+                MemoryUtil.memFree(fileBuffer);
+                fileBuffer = null; // prevent double-free in outer finally
+
+                // Play through Java's AudioSystem — bypasses MC volume completely
+                AudioFormat format = new AudioFormat(sampleRate, 16, channels, true, false);
+                DataLine.Info lineInfo = new DataLine.Info(SourceDataLine.class, format);
+                try (SourceDataLine line = (SourceDataLine) AudioSystem.getLine(lineInfo)) {
+                    line.open(format);
+                    line.start();
+                    int offset = 0;
+                    while (offset < audioBytes.length) {
+                        int chunk = Math.min(4096, audioBytes.length - offset);
+                        line.write(audioBytes, offset, chunk);
+                        offset += chunk;
+                    }
+                    line.drain();
+                }
+                LOGGER.info("[Panama] OGG playback complete: {}", absolutePath);
+
+            } catch (Exception e) {
+                LOGGER.warn("[Panama] OGG playback failed: {}", absolutePath, e);
+            } finally {
+                if (fileBuffer != null) MemoryUtil.memFree(fileBuffer);
+            }
+        }, "SentientCoolplayer-OggPlayer");
+        t.setDaemon(true);
+        t.start();
     }
 }

@@ -129,6 +129,7 @@ public class ClientModEvents {
             }
 
             // 5) Small "Entity Link" button for reconfiguring API key
+            //    Positioned at top-right to avoid overlapping MC's copyright text and buttons
             Button entityLinkBtn = Button.builder(
                     Component.literal("\u00A7a\u00A7l\u2699 Entity Link"),
                     btn -> {
@@ -137,7 +138,7 @@ public class ClientModEvents {
                             Minecraft.getInstance().setScreen(new ApiKeyScreen(orch.getAiBridge()));
                         }
                     }
-            ).bounds(titleScreen.width - 110, titleScreen.height - 30, 100, 20).build();
+            ).bounds(titleScreen.width - 110, 6, 100, 20).build();
             event.addListener(entityLinkBtn);
         }
 

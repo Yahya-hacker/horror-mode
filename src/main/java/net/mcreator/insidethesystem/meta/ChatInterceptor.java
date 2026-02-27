@@ -13,10 +13,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * ChatInterceptor — Hooks into NeoForge's ServerChatEvent to intercept player messages
  * and route them through the Gemini AI bridge.
+ *
+ * Script-aware: Messages that match ITS's built-in dialogue triggers are NOT sent
+ * to Gemini (ITS already handles them). Only novel/unscripted messages go to the AI.
  *
  * PRIVACY: Only the text typed in the MC chat bar is sent to Gemini,
  * along with the biome name and running process names.
@@ -27,6 +31,63 @@ public class ChatInterceptor {
 
     /** Last known server instance for idle-initiation broadcasts. */
     private static volatile MinecraftServer lastServer = null;
+
+    // ─── ITS SCRIPT TRIGGER PHRASES ──────────────────────────────────
+    // These are ALL the trigger phrases from CoolPlayerResponseProcedureProcedure.
+    // If the player's message contains any of these, ITS will handle the response,
+    // so we should NOT waste a Gemini API call on it.
+    private static final Set<String> ITS_TRIGGER_PHRASES = Set.of(
+        // --- Identity questions ---
+        "who are you", "кто ты", "あなたは誰",
+        "what are you", "что ты", "あなたは何？",
+        // --- Help/Real/See ---
+        "help me", "помоги", "助けて",
+        "are you real", "это сон", "これは夢？",
+        "do you see", "ты видел это", "見えた？",
+        // --- Location/Glitch/Shadow ---
+        "where am i", "где я", "私はどこ？",
+        "glitch", "глюк", "バグ",
+        "shadow", "тень", "影",
+        // --- Follow/Wake/Alive ---
+        "follow", "следуй", "ついてきて",
+        "wake up", "проснись",
+        "alive", "жив", "まだ生きてる？",
+        // --- Greetings ---
+        "hello", "hi", "привет", "こんにちは",
+        "bye", "пока", "さようなら",
+        // --- Story/Lore ---
+        "what happened", "что случилось", "何が起きた",
+        "why", "почему", "なぜ",
+        "herobrine", "хиробрин",
+        "entity 303", "энтити 303",
+        // --- Death/Save/Error ---
+        "death", "смерть",
+        "kill me", "убей меня",
+        "save me", "спаси меня",
+        "error", "ошибка", "エラー",
+        // --- Russian profanity (triggers HUY_RESPONSE) ---
+        "хуй", "huy",
+        // --- English profanity (triggers INSULT_RESPONSE) ---
+        "fuck", "shit", "bitch", "asshole",
+        "idiot", "moron", "retard",
+        // --- Russian profanity (triggers INSULT_RESPONSE) ---
+        "сука", "блять", "ебать", "нахуй", "пиздец", "гандон", "урод",
+        "тупой", "дебил", "идиот", "даун"
+    );
+
+    /**
+     * Checks if a player message matches any ITS scripted trigger phrase.
+     * ITS uses String.contains() matching on the lowercased message.
+     */
+    private static boolean isHandledByITSScript(String rawMessage) {
+        String lower = rawMessage.toLowerCase().trim();
+        for (String trigger : ITS_TRIGGER_PHRASES) {
+            if (lower.contains(trigger)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     @SubscribeEvent
     public static void onServerChat(ServerChatEvent event) {
@@ -53,7 +114,15 @@ public class ChatInterceptor {
 
         if (npcs.isEmpty()) return;
 
-        LOGGER.info("[Chat] Intercepted from {}: '{}'", playerName, rawMessage);
+        // ─── SCRIPT-AWARE FILTER ─────────────────────────────────────
+        // If ITS already has a scripted response for this message, skip Gemini.
+        // This saves API calls and avoids double-responses.
+        if (isHandledByITSScript(rawMessage)) {
+            LOGGER.debug("[Chat] Message '{}' matches ITS script — skipping Gemini", rawMessage);
+            return;
+        }
+
+        LOGGER.info("[Chat] Intercepted from {}: '{}' (no ITS script match → routing to Gemini)", playerName, rawMessage);
 
         // Gather context for the AI
         String biomeName = orchestrator.getLastBiomeName();

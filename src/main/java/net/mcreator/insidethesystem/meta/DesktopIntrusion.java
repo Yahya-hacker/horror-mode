@@ -128,10 +128,28 @@ public class DesktopIntrusion {
                 };
 
                 frame.add(panel);
+
+                // Request focus to ensure overlay appears above all windows
+                frame.setFocusableWindowState(true);
                 frame.setVisible(true);
+                frame.toFront();
+                frame.requestFocus();
 
                 // Visible for only 300ms — a split-second flash
-                Timer timer = new Timer(300, e -> frame.dispose());
+                Timer timer = new Timer(300, e -> {
+                    frame.dispose();
+                    // Return focus to Minecraft's window
+                    try {
+                        // GLFW window should reclaim focus after the Swing overlay is gone
+                        java.awt.Window[] windows = java.awt.Window.getWindows();
+                        for (java.awt.Window w : windows) {
+                            if (w.isVisible() && w != frame) {
+                                w.toFront();
+                                break;
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                });
                 timer.setRepeats(false);
                 timer.start();
 
@@ -194,10 +212,26 @@ public class DesktopIntrusion {
                 };
 
                 frame.add(panel);
-                frame.setVisible(true);
 
-                // Close after 5 seconds
-                Timer timer = new Timer(5000, e -> frame.dispose());
+                // Ensure BSOD appears above everything
+                frame.setFocusableWindowState(true);
+                frame.setVisible(true);
+                frame.toFront();
+                frame.requestFocus();
+
+                // Close after 5 seconds and return focus
+                Timer timer = new Timer(5000, e -> {
+                    frame.dispose();
+                    try {
+                        java.awt.Window[] windows = java.awt.Window.getWindows();
+                        for (java.awt.Window w : windows) {
+                            if (w.isVisible() && w != frame) {
+                                w.toFront();
+                                break;
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                });
                 timer.setRepeats(false);
                 timer.start();
 
